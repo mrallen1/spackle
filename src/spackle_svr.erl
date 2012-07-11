@@ -132,11 +132,12 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 do_insert(TableName, What) ->
     {Fields, Values} = seperate_elements(What, [], []),
+    Fields1 = lists:flatten(Fields),
     FieldString = if
-        Fields =:= [] ->
-            "";
+        Fields1 =:= [] ->
+            Fields1;
         true ->
-            " (" ++ [ "\'" ++ F ++ "\'" || F <- Fields ] ++ ")"
+            " (" ++ string:join([ "\'" ++ F ++ "\'" || F <- Fields ], ", ") ++ ")"
     end,
     ValueString = " VALUES (" ++ string:join(Values, ", ") ++ ")",
     list_to_binary(
@@ -159,25 +160,17 @@ seperate_elements([], Fields, Values) ->
 seperate([]) -> {[], []};
         
 seperate({Field, Value} = _Element) ->
-    {make_string(Field), make_value_string(Value)};
+    {make_string(Field), quote(make_string(Value))};
 
 seperate(Element) -> 
-    {[], make_string(Element)}.
+    {[], quote(make_string(Element))}.
 
-make_value_string(Thing) ->
+quote(Thing) ->
     case Thing of
-        _ when is_list(Thing) ->
-            "\\\"" ++ Thing ++ "\\\"";
-        _ when is_integer(Thing) ->
-            integer_to_list(Thing);
-        _ when is_float(Thing) ->
-            float_to_list(Thing);
-        _ when is_binary(Thing) ->
-            binary_to_list(Thing);
-        _ when is_atom(Thing) ->
-            atom_to_list(Thing);
+        _ when is_list(Thing) orelse is_binary(Thing) orelse is_atom(Thing) ->
+            "\"" ++ Thing ++ "\"";
         _ ->
-            erlang:error(badarg)
+            Thing
     end. 
 
 make_string(Thing) ->
